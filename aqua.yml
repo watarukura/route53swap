@@ -11,3 +11,5 @@ registries:
 packages:
   - name: golangci/golangci-lint@v1.50.1 
   - name: evilmartians/lefthook@v1.2.8
+  - name: golang/go@go1.19.5
+

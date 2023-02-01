@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 
@@ -12,31 +13,67 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-func main() {
-	blue := "blue.example.com."
-	blueType := "A"
-	green := "green.example.com."
-	greenType := "A"
-	zoneID := "Z*******************"
+var blue string
+var blueType string
+var green string
+var greenType string
+var zoneID string
+var isDryRun bool
 
+func init() {
+	flag.StringVar(&blue, "blue", "", "swap target 1 like blue.example.com.")
+	flag.StringVar(&blueType, "blueType", "", "swap target type 1 like A")
+	flag.StringVar(&green, "green", "", "swap target 2 like green.example.com.")
+	flag.StringVar(&greenType, "greenType", "", "swap target type 2 like CNAME")
+	flag.StringVar(&zoneID, "zoneID", "", "zone id like ZHOGEHOGE")
+	flag.BoolVar(&isDryRun, "dryrun", false, "dryrun and print diff")
+
+	flag.Parse()
+
+	if blue == "" {
+		fmt.Println("Error: target 1 is not set")
+	}
+	if blueType == "" {
+		fmt.Println("Error: target type 1 is not set")
+	}
+	if green == "" {
+		fmt.Println("Error: target 2 is not set")
+	}
+	if greenType == "" {
+		fmt.Println("Error: target type 2 is not set")
+	}
+	if zoneID == "" {
+		fmt.Println("Error: zone id is not set")
+	}
+}
+
+func main() {
 	sess := session.Must(session.NewSession())
 	route53Svc := route53.New(sess)
 
-	blueRecord, _ := route53Svc.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
+	blueRecord, err := route53Svc.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
 		HostedZoneId:    aws.String(zoneID),
 		StartRecordName: aws.String(blue),
 		StartRecordType: aws.String(blueType),
 		MaxItems:        aws.String("1"),
 	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
 
-	greenRecord, _ := route53Svc.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
+	greenRecord, err := route53Svc.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
 		HostedZoneId:    aws.String(zoneID),
 		StartRecordName: aws.String(green),
 		StartRecordType: aws.String(greenType),
 		MaxItems:        aws.String("1"),
 	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
 
-	originalRecordSetsJSON, _ := json.Marshal([]*route53.Change{
+	originalRecordSetsJSON, err := json.Marshal([]*route53.Change{
 		{
 			Action:            aws.String("UPSERT"),
 			ResourceRecordSet: blueRecord.ResourceRecordSets[0],
@@ -46,6 +83,10 @@ func main() {
 			ResourceRecordSet: greenRecord.ResourceRecordSets[0],
 		},
 	})
+	if err != nil {
+		fmt.Println("Error: ", err)
+		os.Exit(1)
+	}
 
 	blueRecord.ResourceRecordSets[0].Name = aws.String(green)
 	greenRecord.ResourceRecordSets[0].Name = aws.String(blue)
@@ -60,7 +101,7 @@ func main() {
 		},
 	}
 
-	if os.Getenv("DRYRUN") == "1" {
+	if os.Getenv("DRYRUN") == "1" || isDryRun {
 		dmp := diffmatchpatch.New()
 		var buf bytes.Buffer
 		var buf2 bytes.Buffer
@@ -74,7 +115,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	_, err := route53Svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+	_, err = route53Svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
 		HostedZoneId: aws.String(zoneID),
 		ChangeBatch: &route53.ChangeBatch{
 			Comment: aws.String("swap"),

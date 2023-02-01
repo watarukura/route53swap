@@ -11,3 +11,15 @@ pre-commit:
         else
           echo "golanglint-ci is not found."
         fi
+
+build:
+  parallel: false
+  commands:
+    go:
+      glob: "*.go"
+      run: |
+        if type -a go >/dev/null 2>&1; then
+          go build -o route53swap main.go
+        else
+          echo "go is not found."
+        fi
