@@ -1,0 +1,13 @@
+---
+pre-commit:
+  parallel: true
+  commands:
+    go:
+      glob: "*.go"
+      run: |
+        if type -a golangci-lint >/dev/null 2>&1; then
+          go fmt
+          golangci-lint run
+        else
+          echo "golanglint-ci is not found."
+        fi
