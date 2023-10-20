@@ -30,20 +30,12 @@ func init() {
 
 	flag.Parse()
 
-	if blue == "" {
-		fmt.Println("Error: target 1 is not set")
+	if blue == "" || blueType == "" || green == "" || greenType == "" || zoneID == "" {
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
-	if blueType == "" {
-		fmt.Println("Error: target type 1 is not set")
-	}
-	if green == "" {
-		fmt.Println("Error: target 2 is not set")
-	}
-	if greenType == "" {
-		fmt.Println("Error: target type 2 is not set")
-	}
-	if zoneID == "" {
-		fmt.Println("Error: zone id is not set")
+	if os.Getenv("DRYRUN") == "1" {
+		isDryRun = true
 	}
 }
 
@@ -58,8 +50,7 @@ func main() {
 		MaxItems:        aws.String("1"),
 	})
 	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
+		panic(err)
 	}
 
 	greenRecord, err := route53Svc.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
@@ -69,8 +60,7 @@ func main() {
 		MaxItems:        aws.String("1"),
 	})
 	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
+		panic(err)
 	}
 
 	originalRecordSetsJSON, err := json.Marshal([]*route53.Change{
@@ -84,8 +74,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Println("Error: ", err)
-		os.Exit(1)
+		panic(err)
 	}
 
 	blueRecord.ResourceRecordSets[0].Name = aws.String(green)
@@ -101,7 +90,7 @@ func main() {
 		},
 	}
 
-	if os.Getenv("DRYRUN") == "1" || isDryRun {
+	if isDryRun {
 		dmp := diffmatchpatch.New()
 		var buf bytes.Buffer
 		var buf2 bytes.Buffer
