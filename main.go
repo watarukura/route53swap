@@ -91,20 +91,21 @@ func main() {
 	}
 
 	if isDryRun {
-		dmp := diffmatchpatch.New()
 		var buf bytes.Buffer
 		var buf2 bytes.Buffer
 		changeRecordSetsJSON, _ := json.Marshal(changeRecordSets)
 		_ = json.Indent(&buf, originalRecordSetsJSON, "", "  ")
 		_ = json.Indent(&buf2, changeRecordSetsJSON, "", "  ")
+
+		dmp := diffmatchpatch.New()
 		a, b, c := dmp.DiffLinesToChars(buf.String(), buf2.String())
 		diffs := dmp.DiffMain(a, b, false)
-		diffs = dmp.DiffCharsToLines(diffs, c)
-		fmt.Println(dmp.DiffPrettyText(diffs))
+		result := dmp.DiffCharsToLines(diffs, c)
+		fmt.Println(dmp.DiffPrettyText(result))
 		os.Exit(0)
 	}
 
-	_, err = route53Svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+	result, err := route53Svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
 		HostedZoneId: aws.String(zoneID),
 		ChangeBatch: &route53.ChangeBatch{
 			Comment: aws.String("swap"),
@@ -112,6 +113,8 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Println("Error: ", err)
+		panic(err)
 	}
+	fmt.Println(result)
+	os.Exit(0)
 }
